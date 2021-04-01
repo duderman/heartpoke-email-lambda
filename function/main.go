@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Request struct {
@@ -37,9 +38,10 @@ func init() {
 	emailClient = ses.New(awsSession, aws.NewConfig().WithRegion("eu-west-2"))
 	h = hermes.Hermes{
 		Product: hermes.Product{
-			Name: "HeartPoke",
-			Link: "https://heartpoke.co.uk",
-			Logo: "https://heartpoke.co.uk/logo.png",
+			Name:      "HeartPoke",
+			Link:      "https://heartpoke.co.uk",
+			Logo:      "https://heartpoke.co.uk/logo.png",
+			Copyright: fmt.Sprintf("Copyright © %d HeartPoke. All rights reserved.", time.Now().Year()),
 		},
 	}
 
