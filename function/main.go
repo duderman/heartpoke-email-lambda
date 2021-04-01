@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
@@ -11,16 +13,18 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type Request struct {
-	Name        string `json:"name" validate:"required"`
-	DOB         string `json:"dob" validate:"required"`
-	Email       string `json:"email" validate:"required,email"`
-	Placement   string `json:"placement" validate:"required"`
-	Size        int    `json:"size" validate:"required,gte=0"`
-	Description string `json:"description" validate:"required"`
-	Comments    string `json:"comments"`
+	Name        string   `json:"name" validate:"required"`
+	DOB         string   `json:"dob" validate:"required"`
+	Email       string   `json:"email" validate:"required,email"`
+	Placement   string   `json:"placement" validate:"required"`
+	Size        int      `json:"size" validate:"required,gte=0"`
+	Description string   `json:"description" validate:"required"`
+	Comments    string   `json:"comments"`
+	References  []string `json:"references"`
 }
 
 var emailClient *ses.SES
@@ -35,7 +39,7 @@ func init() {
 		Product: hermes.Product{
 			Name: "HeartPoke",
 			Link: "https://heartpoke.co.uk",
-			Logo: "https://heartpoke.s3.eu-west-2.amazonaws.com/logo.png",
+			Logo: "https://heartpoke.co.uk/logo.png",
 		},
 	}
 
@@ -49,6 +53,18 @@ func ReturnErrorToUser(error error, status int) (events.APIGatewayProxyResponse,
 		Headers:    map[string]string{"Content-Type": "text/plain"},
 		Body:       error.Error(),
 	}, nil
+}
+
+func ImageTagForSrc(src string) string {
+	return fmt.Sprintf("<img src=\"%s\" width=\"400\" />", src)
+}
+
+func GenerateImagesHTML(refs []string) string {
+	var b bytes.Buffer
+	for _, ref := range refs {
+		b.WriteString(ImageTagForSrc(ref))
+	}
+	return b.String()
 }
 
 func GenerateAdminEmail(request Request) hermes.Email {
@@ -66,6 +82,7 @@ func GenerateAdminEmail(request Request) hermes.Email {
 				{Key: "Size", Value: strconv.Itoa(request.Size)},
 				{Key: "Description", Value: request.Description},
 				{Key: "Comments", Value: request.Comments},
+				{Key: "References", Value: "{{SUB}}"},
 			},
 		},
 	}
@@ -83,12 +100,13 @@ func GenerateCustomerEmail(name string) hermes.Email {
 	}
 }
 
-func SendEmail(email hermes.Email, subject string, replyTo string) error {
+func SendEmail(email hermes.Email, destination string, subject string, replyTo string, substitutes string) error {
 	emailBody, err := h.GenerateHTML(email)
 
 	if err != nil {
 		return err
 	}
+	emailBody = strings.ReplaceAll(emailBody, "{{SUB}}", substitutes)
 
 	emailText, err := h.GeneratePlainText(email)
 
@@ -107,9 +125,9 @@ func SendEmail(email hermes.Email, subject string, replyTo string) error {
 			},
 		},
 		Destination: &ses.Destination{
-			ToAddresses: []*string{aws.String("zduderman@gmail.com")},
+			ToAddresses: []*string{aws.String(destination)},
 		},
-		Source:           aws.String("no-reply@heartpoke.co.uk"),
+		Source:           aws.String("HeartPoke <no-reply@heartpoke.co.uk>"),
 		ReplyToAddresses: []*string{aws.String(replyTo)},
 	}
 
@@ -131,14 +149,16 @@ func Handler(request Request) (events.APIGatewayProxyResponse, error) {
 	}
 
 	adminEmail := GenerateAdminEmail(request)
-	err = SendEmail(adminEmail, "New booking", request.Email)
+	adminEmailSubject := fmt.Sprintf("Booking from %s", request.Email)
+	refs := GenerateImagesHTML(request.References)
+	err = SendEmail(adminEmail, "zduderman@gmail.com", adminEmailSubject, request.Email, refs)
 
 	if err != nil {
 		return ReturnErrorToUser(err, http.StatusInternalServerError)
 	}
 
 	customerEmail := GenerateCustomerEmail(request.Name)
-	err = SendEmail(customerEmail, "Booking received", "no-reply@heartpoke.co.uk")
+	err = SendEmail(customerEmail, "zduderman@gmail.com", "Booking received", "no-reply@heartpoke.co.uk", "")
 
 	if err != nil {
 		return ReturnErrorToUser(err, http.StatusInternalServerError)
