@@ -12,6 +12,7 @@ import (
 	"github.com/matcornic/hermes/v2"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -151,16 +152,16 @@ func Handler(request Request) (events.APIGatewayProxyResponse, error) {
 	}
 
 	adminEmail := GenerateAdminEmail(request)
-	adminEmailSubject := fmt.Sprintf("Booking from %s", request.Email)
+	adminEmailSubject := fmt.Sprintf("Booking request from %s", request.Email)
 	refs := GenerateImagesHTML(request.References)
-	err = SendEmail(adminEmail, "zduderman@gmail.com", adminEmailSubject, request.Email, refs)
+	err = SendEmail(adminEmail, os.Getenv("ADMIN_EMAIL"), adminEmailSubject, request.Email, refs)
 
 	if err != nil {
 		return ReturnErrorToUser(err, http.StatusInternalServerError)
 	}
 
 	customerEmail := GenerateCustomerEmail(request.Name)
-	err = SendEmail(customerEmail, "zduderman@gmail.com", "Booking received", "no-reply@heartpoke.co.uk", "")
+	err = SendEmail(customerEmail, request.Email, "Booking received", "no-reply@heartpoke.co.uk", "")
 
 	if err != nil {
 		return ReturnErrorToUser(err, http.StatusInternalServerError)
