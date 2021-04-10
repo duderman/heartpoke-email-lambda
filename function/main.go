@@ -13,7 +13,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -23,7 +22,7 @@ type Request struct {
 	DOB         string   `json:"dob" validate:"required"`
 	Email       string   `json:"email" validate:"required,email"`
 	Placement   string   `json:"placement" validate:"required"`
-	Size        int      `json:"size" validate:"required,gte=0"`
+	Size        string   `json:"size" validate:"required"`
 	Description string   `json:"description" validate:"required"`
 	Comments    string   `json:"comments"`
 	References  []string `json:"references"`
@@ -82,7 +81,7 @@ func GenerateAdminEmail(request Request) hermes.Email {
 				{Key: "DOB", Value: request.DOB},
 				{Key: "Email", Value: request.Email},
 				{Key: "Placement", Value: request.Placement},
-				{Key: "Size", Value: strconv.Itoa(request.Size)},
+				{Key: "Size", Value: request.Size},
 				{Key: "Description", Value: request.Description},
 				{Key: "Comments", Value: request.Comments},
 				{Key: "References", Value: "{{SUB}}"},
