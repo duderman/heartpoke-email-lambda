@@ -143,7 +143,6 @@ func SendEmail(email hermes.Email, destination string, subject string, replyTo s
 }
 
 func Handler(request Request) (events.APIGatewayProxyResponse, error) {
-	log.Println(request)
 	err := validate.Struct(request)
 
 	if err != nil {
