@@ -2,6 +2,9 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -47,10 +50,10 @@ func init() {
 
 }
 
-func ReturnErrorToUser(error error, status int) (events.APIGatewayProxyResponse, error) {
+func ReturnErrorToUser(error error, status int) (events.APIGatewayV2HTTPResponse, error) {
 	log.Println(error.Error())
 
-	return events.APIGatewayProxyResponse{
+	return events.APIGatewayV2HTTPResponse{
 		StatusCode: status,
 		Headers:    map[string]string{"Content-Type": "text/plain"},
 		Body:       error.Error(),
@@ -72,7 +75,7 @@ func GenerateImagesHTML(refs []string) string {
 func GenerateAdminEmail(request Request) hermes.Email {
 	return hermes.Email{
 		Body: hermes.Body{
-			Name: "Katenka",
+			Name: "Katie",
 			Intros: []string{
 				"New booking request",
 			},
@@ -142,9 +145,48 @@ func SendEmail(email hermes.Email, destination string, subject string, replyTo s
 	return nil
 }
 
-func Handler(request Request) (events.APIGatewayProxyResponse, error) {
-	err := validate.Struct(request)
+func ParseRequestBody(req events.APIGatewayV2HTTPRequest) (request Request, err error) {
+	b := []byte(req.Body)
 
+	if req.IsBase64Encoded {
+		base64Body, err := base64.StdEncoding.DecodeString(req.Body)
+		if err != nil {
+			return request, err
+		}
+		b = base64Body
+	}
+
+	err = json.Unmarshal(b, &request)
+
+	if err != nil {
+		return request, err
+	}
+
+	return request, nil
+}
+
+var corsHeaders = map[string]string{
+	"Access-Control-Allow-Origin":  "*",
+	"Access-Control-Allow-Methods": "OPTIONS,POST",
+	"Access-Control-Allow-Headers": "Content-Type",
+	"Content-Type":                 "application/json",
+}
+
+func Handler(_ context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	if req.RequestContext.HTTP.Method == "OPTIONS" {
+		return events.APIGatewayV2HTTPResponse{
+			StatusCode: http.StatusOK,
+			Body:       "{\"status\": \"ok\"}",
+			Headers:    corsHeaders,
+		}, nil
+	}
+
+	request, err := ParseRequestBody(req)
+	if err != nil {
+		return ReturnErrorToUser(err, http.StatusBadRequest)
+	}
+
+	err = validate.Struct(request)
 	if err != nil {
 		return ReturnErrorToUser(err, http.StatusBadRequest)
 	}
@@ -165,7 +207,7 @@ func Handler(request Request) (events.APIGatewayProxyResponse, error) {
 		return ReturnErrorToUser(err, http.StatusInternalServerError)
 	}
 
-	return events.APIGatewayProxyResponse{StatusCode: 200}, nil
+	return events.APIGatewayV2HTTPResponse{StatusCode: http.StatusOK}, nil
 }
 
 func main() {
