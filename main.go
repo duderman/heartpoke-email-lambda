@@ -6,6 +6,12 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
@@ -13,11 +19,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ses"
 	"github.com/go-playground/validator/v10"
 	"github.com/matcornic/hermes/v2"
-	"log"
-	"net/http"
-	"os"
-	"strings"
-	"time"
 )
 
 type Request struct {
@@ -28,6 +29,7 @@ type Request struct {
 	Size        string   `json:"size" validate:"required"`
 	Description string   `json:"description" validate:"required"`
 	Comments    string   `json:"comments"`
+	Technique   string   `json:"technique"`
 	References  []string `json:"references"`
 }
 
@@ -87,6 +89,7 @@ func GenerateAdminEmail(request Request) hermes.Email {
 				{Key: "Size", Value: request.Size},
 				{Key: "Description", Value: request.Description},
 				{Key: "Comments", Value: request.Comments},
+				{Key: "Technique", Value: request.Technique},
 				{Key: "References", Value: "{{SUB}}"},
 			},
 		},
