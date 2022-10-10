@@ -30,6 +30,7 @@ type Request struct {
 	Description string   `json:"description" validate:"required"`
 	Comments    string   `json:"comments"`
 	Technique   string   `json:"technique"`
+	City        string   `json:"city"`
 	References  []string `json:"references"`
 }
 
@@ -90,6 +91,7 @@ func GenerateAdminEmail(request Request) hermes.Email {
 				{Key: "Description", Value: request.Description},
 				{Key: "Comments", Value: request.Comments},
 				{Key: "Technique", Value: request.Technique},
+				{Key: "City", Value: request.City},
 				{Key: "References", Value: "{{SUB}}"},
 			},
 		},
