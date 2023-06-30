@@ -3,7 +3,7 @@
 HEARTPOKE_PATH = ../heartpoke/cf/lib/book
 
 build:
-	GOOS=linux go build -o bin/main main.go
+	GOARCH=amd64 GOOS=linux go build -o bin/main main.go
 
 copy:
 	mkdir -p ${HEARTPOKE_PATH}
